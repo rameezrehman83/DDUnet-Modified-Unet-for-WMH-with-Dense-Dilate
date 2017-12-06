@@ -73,6 +73,107 @@ def create_raw_data(hospitals = ["GE3T", "Singapore", "Utrecht"],\
         hos_root = os.path.join(data_root, hos)
         # (X_train_GE3T.npy, Y_train_GE3T.npy, X_test_GE3T.npy, Y_test_GE3T.npy)
         
+        X_test_each_hos_t1 = None
+        X_test_each_hos_flair = None
+        Y_test_each_hos = None
+        X_train_each_hos_t1 = None
+        X_train_each_hos_flair = None
+        Y_train_each_hos = None
+        
+        
+        # create test/training set along patients separation
+        
+        dds = [x for x in os.listdir(hos_root) if not x.startswith(".")]
+        for i in range(len(dds)):
+            dd = dds[i]
+            patient_t1 = nib.load(os.path.join(hos_root, dd, "pre", "T1.nii.gz")).get_data()
+            patient_flair = nib.load(os.path.join(hos_root, dd, "pre", "FLAIR.nii.gz")).get_data()
+            patient_label = nib.load(os.path.join(hos_root, dd, "wmh.nii.gz")).get_data()
+            
+            #1, cut margin
+            nz = patient_t1.shape[2]
+            beg = int(nz * cut_margin)
+            end = int(nz - nz*cut_margin)
+            
+            patient_t1 = patient_t1[:,:,beg:end]
+            patient_flair = patient_flair[:,:,beg:end]
+            patient_label = patient_label[:,:,beg:end]
+            
+            # move the last axis to the first axis
+            patient_t1 = np.moveaxis(patient_t1, -1, 0)
+            patient_flair = np.moveaxis(patient_flair, -1, 0)
+            patient_label = np.moveaxis(patient_label, -1, 0)
+            
+            # with condition it is test_part
+            if i >= which_part_as_test * int(len(dds)*test_frac) and i < (which_part_as_test+1)* int(int(len(dds)*test_frac)):
+                if X_test_each_hos_t1 is None:
+                    X_test_each_hos_t1 = patient_t1
+                    X_test_each_hos_flair = patient_flair
+                    Y_test_each_hos = patient_label
+                else:
+                    if patient_t1.shape[1:] == X_test_each_hos_t1.shape[1:]:
+                        X_test_each_hos_t1 = np.concatenate((X_test_each_hos_t1, patient_t1), axis=0)
+                        X_test_each_hos_flair = np.concatenate((X_test_each_hos_flair, patient_flair), axis=0)
+                        Y_test_each_hos = np.concatenate((Y_test_each_hos, patient_label), axis=0)
+                
+            #else is training part
+            else:
+                if X_train_each_hos_t1 is None:
+                    X_train_each_hos_t1 = patient_t1
+                    X_train_each_hos_flair = patient_flair
+                    Y_train_each_hos = patient_label
+                else:
+                    if patient_t1.shape[1:] == X_train_each_hos_t1.shape[1:]:
+                        X_train_each_hos_t1 = np.concatenate((X_train_each_hos_t1, patient_t1), axis=0)
+                        X_train_each_hos_flair = np.concatenate((X_train_each_hos_flair, patient_flair), axis=0)
+                        Y_train_each_hos = np.concatenate((Y_train_each_hos, patient_label), axis=0)
+            
+        
+        # TEST SET construct 2-channel form
+        tmp = np.concatenate((X_test_each_hos_t1.reshape((X_test_each_hos_t1.shape[0]*X_test_each_hos_t1.shape[1]*X_test_each_hos_t1.shape[2],1)), \
+                              X_test_each_hos_flair.reshape((X_test_each_hos_flair.shape[0]*X_test_each_hos_flair.shape[1]*X_test_each_hos_flair.shape[2],1))), \
+                             axis=1)
+        X_test_each_hos = tmp.reshape((X_test_each_hos_t1.shape[0],X_test_each_hos_t1.shape[1],X_test_each_hos_t1.shape[2],2))
+        Y_test_each_hos = np.where(Y_test_each_hos == 1, 1, 0)        # delete other labels except 1
+
+            
+        # TRAINING SET
+        tmp = np.concatenate((X_train_each_hos_t1.reshape((X_train_each_hos_t1.shape[0]*X_train_each_hos_t1.shape[1]*X_train_each_hos_t1.shape[2],1)), \
+                              X_train_each_hos_flair.reshape((X_train_each_hos_flair.shape[0]*X_train_each_hos_flair.shape[1]*X_train_each_hos_flair.shape[2],1))), \
+                             axis=1)
+        X_train_each_hos = tmp.reshape((X_train_each_hos_t1.shape[0],X_train_each_hos_t1.shape[1],X_train_each_hos_t1.shape[2],2))
+        Y_train_each_hos = np.where(Y_train_each_hos == 1, 1, 0)        # delete other labels except 1
+
+        np.save(os.path.join("data_raw", "X_train_"+hos+".npy"), X_train_each_hos)
+        np.save(os.path.join("data_raw", "Y_train_"+hos+".npy"), Y_train_each_hos)
+        np.save(os.path.join("data_raw", "X_test_"+hos+".npy"), X_test_each_hos)
+        np.save(os.path.join("data_raw", "Y_test_"+hos+".npy"), Y_test_each_hos)
+        
+        print("X_train_"+hos+".npy "+"created: ", X_train_each_hos.shape)
+        print("Y_train_"+hos+".npy "+"created: ", Y_train_each_hos.shape)
+        print("X_test_"+hos+".npy "+"created: ", X_test_each_hos.shape)
+        print("Y_test_"+hos+".npy "+"created: ", Y_test_each_hos.shape)
+
+    print("create_data finished!")
+
+def create_raw_data_old(hospitals = ["GE3T", "Singapore", "Utrecht"],\
+                test_frac = 0.2, \
+                cut_margin = 1/8, \
+                which_part_as_test = 0 \
+                ):
+    print("starting create_data for hospitals of ", hospitals, "in ./data")
+    
+    #create the directories for preceeded data storing
+    if not os.path.exists(os.path.join(os.getcwd(), "data_raw")):
+        os.makedirs(os.path.join(os.getcwd(), "data_raw"))
+
+        
+    data_root = os.path.join(os.getcwd(), "data")
+    for hos in hospitals:
+        
+        hos_root = os.path.join(data_root, hos)
+        # (X_train_GE3T.npy, Y_train_GE3T.npy, X_test_GE3T.npy, Y_test_GE3T.npy)
+        
         X_each_hos_t1 = None
         X_each_hos_flair = None
         Y_each_hos = None
