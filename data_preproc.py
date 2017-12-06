@@ -156,25 +156,7 @@ def create_raw_data(hospitals = ["GE3T", "Singapore", "Utrecht"],\
 
     print("create_data finished!")
 
-# In[]:
-#def get_crop_shape(target, refer):
-#    # height, the 1 dimension
-#
-#    ch = (K.get_variable_shape(target)[1] - K.get_variable_shape(refer)[1])
-#    assert (ch >= 0)
-#    if ch % 2 != 0:
-#        ch1, ch2 = int(ch/2), int(ch/2) + 1
-#    else:
-#        ch1, ch2 = int(ch/2), int(ch/2)
-#        
-#    cw = (K.get_variable_shape(target)[2] - K.get_variable_shape(refer)[2])
-#    assert (cw >= 0)
-#    if cw % 2 != 0:
-#        cw1, cw2 = int(cw/2), int(cw/2) + 1
-#    else:
-#        cw1, cw2 = int(cw/2), int(cw/2)
-#    
-#    return (ch1, ch2), (cw1, cw2)
+# In[]
     
 def resize_data(new_size = 240, hospitals = ["GE3T", "Singapore", "Utrecht"]):
     
