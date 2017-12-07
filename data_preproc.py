@@ -46,6 +46,8 @@ goal: To generate the *npy files for u-net to train and test
 import os
 import numpy as np
 import nibabel as nib
+import matplotlib.pyplot as plt
+
 
 # In[5]:
 
@@ -158,7 +160,7 @@ def create_raw_data(hospitals = ["GE3T", "Singapore", "Utrecht"],\
 
 # In[]
     
-def resize_data(new_size = 240, hospitals = ["GE3T", "Singapore", "Utrecht"]):
+def resize_data(which_part_as_test, new_size = 240, hospitals = ["GE3T", "Singapore", "Utrecht"]):
     
     # mkdir
     if not os.path.exists(os.path.join(os.getcwd(), "data_"+str(new_size))):
@@ -355,6 +357,33 @@ def resize_data(new_size = 240, hospitals = ["GE3T", "Singapore", "Utrecht"]):
     
     print("Resizing to", new_size, "finished!")
     
+    print("Starting to create nii.gz file to further converging....")
+    
+    print("X_test type is", type(X_test), X_test.dtype)
+    img = nib.Nifti1Image(X_test[:,:,:,0], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"X_test_t1_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create X_test_t1_"+str(which_part_as_test)+".nii.gz","with shape",X_test.shape)
+    
+    img = nib.Nifti1Image(X_test[:,:,:,1], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"X_test_flair_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create X_test_flair_"+str(which_part_as_test)+".nii.gz","with shape",X_test.shape)
+    
+ 
+    Y_test = Y_test.astype(float)
+    print("Y_test type is", type(Y_test), Y_test.dtype)
+    img = nib.Nifti1Image(Y_test.reshape((Y_test.shape[0],Y_test.shape[1],Y_test.shape[2],1))[:,:,:,0], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"Y_test_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create Y_test_"+str(which_part_as_test)+".nii.gz","with shape", Y_test.shape)
+    
+    for i in range(Y_test.shape[0]):
+        if np.sum(Y_test[i, :,:]) > 400:
+            plt.imshow(Y_test[i,:,:])
+            break
+    print("Finished!")
+
+# This funciton will read the X_test.npy, Y_train.npy from ./data_240/ to generate X_test        
+#def create_test_nii()
+    
 # In[]:
 def load_train_data(size=240):
 #    expected the hospital name to decide which file to read
@@ -377,4 +406,4 @@ def test():
 
 if __name__ == '__main__':
     create_raw_data(test_frac=0.2, which_part_as_test=0) # for frac=0.2, which_part_as_test can take from {0,1,2,3,4}
-    resize_data()
+    resize_data(which_part_as_test=0)
