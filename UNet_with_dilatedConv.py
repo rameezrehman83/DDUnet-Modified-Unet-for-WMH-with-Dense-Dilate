@@ -27,7 +27,6 @@ from keras.optimizers import SGD, Adam, Adagrad
 from keras.layers.merge import concatenate
 from keras import backend as K
 import tensorflow as tf
-import cv2
 
 from sklearn.metrics import precision_score, recall_score
 
@@ -280,6 +279,23 @@ def evaluate_testVersion(which_part, input_shape = (240,240,2), weights_path = "
     print(eva)
     return eva
 
+def predict_with_nii(which_part_as_test, input_shape = (240,240,2), weights_path = "weights.h5"):
+    model = unet(input_shape=input_shape, bn=True, do=0, ki="he_normal", lr=0.001)
+    model.load_weights(weights_path)
+    
+    X_test, Y_test = data_preproc.load_test_data(size=240)
+    print(X_test.shape)
+    print(Y_test.shape)
+    
+    pd = model.predict(X_test)
+    pd = np.where(pd < 0.5, 0, 1)
+    pd = pd.astype(float)
+    
+    img = nib.Nifti1Image(pd[:,:,:,0], np.eye(4))
+    nib.save(img, os.path.join("data_240","Y_pred_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create Y_pred_"+str(which_part_as_test)+".nii.gz","with shape",pd.shape)
+    
+
 def predict_testVersion(input_shape = (240,240,2), weights_path = "weights.h5"):
     model = unet(input_shape=input_shape, bn=True, do=0, ki="he_normal", lr=0.001)
     model.load_weights(weights_path)
@@ -348,4 +364,5 @@ if __name__ == "__main__":
 #    train()
 #    predict_testVersion(weights_path = "weights_240.h5")
 #    predict(which_part=0)
-    evaluate_testVersion(which_part=0)
+#    evaluate_testVersion(which_part=0)
+    predict_with_nii(which_part_as_test=0,weights_path="weights_240.h5")
