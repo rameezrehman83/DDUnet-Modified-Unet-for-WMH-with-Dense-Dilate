@@ -47,6 +47,7 @@ import os
 import numpy as np
 import nibabel as nib
 import matplotlib.pyplot as plt
+import cv2
 
 
 # In[5]:
@@ -157,6 +158,249 @@ def create_raw_data(hospitals = ["GE3T", "Singapore", "Utrecht"],\
         print("Y_test_"+hos+".npy "+"created: ", Y_test_each_hos.shape)
 
     print("create_data finished!")
+
+
+# In[]
+    
+def resize_data_with_stretching(which_part_as_test, new_size = 240, hospitals = ["GE3T", "Singapore", "Utrecht"]):
+     # mkdir
+    if not os.path.exists(os.path.join(os.getcwd(), "data_"+str(new_size))):
+        os.makedirs(os.path.join(os.getcwd(), "data_"+str(new_size)))
+        
+    X_train = None
+    Y_train = None
+    X_test = None
+    Y_test = None
+    
+    
+    '''
+    X_train
+    '''
+    for hos in hospitals:
+        X_train_raw = np.load(os.path.join("data_raw", "X_train_"+hos+".npy"))
+        
+        #1, 先看尺寸是否超出，超出的裁掉，不足的不 padding。
+        ############## height ###################
+        ch = X_train_raw.shape[1] - new_size
+        if ch > 0: # need padded to new_size on height
+            if ch % 2 != 0:
+                ch1, ch2 = int(ch/2), int(ch/2) + 1
+            else:
+                ch1, ch2 = int(ch/2), int(ch/2)
+            
+            s = X_train_raw.shape[1]
+            X_train_raw = X_train_raw[:,ch1:s-ch2,:,:]
+        ############## weight ###################
+        cw = X_train_raw.shape[2] - new_size
+        if cw > 0:
+            if cw % 2 != 0:
+                cw1, cw2 = int(cw/2), int(cw/2) + 1
+            else:
+                cw1, cw2 = int(cw/2), int(cw/2)
+            s = X_train_raw.shape[2]
+            X_train_raw = X_train_raw[:,:,cw1:s-cw2,:]
+            
+         
+        #2, 分开两个 channel，每一个 sample 拆开，成为（x, y）的图像，再合并
+        tmp = None
+        for i in range(X_train_raw.shape[0]):
+            tt1 = X_train_raw[i, :, :, 0]
+            tt1 = cv2.resize(tt1, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            tflair = X_train_raw[i, :, :, 1]
+            tflair = cv2.resize(tflair, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            cc = np.concatenate( (np.expand_dims(tt1, axis=-1),np.expand_dims(tflair, axis=-1)), axis=-1)
+            if tmp is None:
+                tmp = np.expand_dims(cc, axis=0)
+            else:
+                tmp = np.concatenate((tmp, np.expand_dims(cc, axis=0)), axis=0)
+        
+        if X_train is None:
+            X_train= tmp
+        else:
+            X_train = np.concatenate((X_train, tmp), axis=0)
+    
+    np.save(os.path.join("data_"+str(new_size), "X_train.npy"), X_train)
+    print("X_train saved! ",X_train.shape)
+            
+    
+    '''
+    Y_train
+    '''
+    for hos in hospitals:
+        Y_train_raw = np.load(os.path.join("data_raw", "Y_train_"+hos+".npy"))
+        
+        #1, 先看尺寸是否超出，超出的裁掉，不足的不 padding。
+        ############## height ###################
+        ch = Y_train_raw.shape[1] - new_size
+        if ch > 0: # need padded to new_size on height
+            if ch % 2 != 0:
+                ch1, ch2 = int(ch/2), int(ch/2) + 1
+            else:
+                ch1, ch2 = int(ch/2), int(ch/2)
+            
+            s = Y_train_raw.shape[1]
+            Y_train_raw = Y_train_raw[:,ch1:s-ch2,:]
+        
+        ############## weight ###################
+        cw = Y_train_raw.shape[2] - new_size
+        if cw > 0:
+            if cw % 2 != 0:
+                cw1, cw2 = int(cw/2), int(cw/2) + 1
+            else:
+                cw1, cw2 = int(cw/2), int(cw/2)
+            s = Y_train_raw.shape[2]
+            Y_train_raw = Y_train_raw[:,:,cw1:s-cw2]
+            
+         
+        #2, 
+        tmp = None
+        for i in range(Y_train_raw.shape[0]):
+            ty = Y_train_raw[i, :, :]
+            ty = ty.astype(float)
+            ty = cv2.resize(ty, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            if tmp is None:
+                tmp = np.expand_dims(ty, axis=0)
+            else:
+                tmp = np.concatenate((tmp, np.expand_dims(ty, axis=0)), axis=0)
+        
+        if Y_train is None:
+            Y_train= tmp
+        else:
+            Y_train = np.concatenate((Y_train, tmp), axis=0)
+    
+    np.save(os.path.join("data_"+str(new_size), "Y_train.npy"), Y_train)
+    print("Y_train saved! ",Y_train.shape)
+    
+    '''
+    X_test
+    '''
+    for hos in hospitals:
+        X_test_raw = np.load(os.path.join("data_raw", "X_test_"+hos+".npy"))
+        
+        #1, 先看尺寸是否超出，超出的裁掉，不足的不 padding。
+        ############## height ###################
+        ch = X_test_raw.shape[1] - new_size
+        if ch > 0: # need padded to new_size on height
+            if ch % 2 != 0:
+                ch1, ch2 = int(ch/2), int(ch/2) + 1
+            else:
+                ch1, ch2 = int(ch/2), int(ch/2)
+            
+            s = X_test_raw.shape[1]
+            X_test_raw = X_test_raw[:,ch1:s-ch2,:,:]
+        ############## weight ###################
+        cw = X_test_raw.shape[2] - new_size
+        if cw > 0:
+            if cw % 2 != 0:
+                cw1, cw2 = int(cw/2), int(cw/2) + 1
+            else:
+                cw1, cw2 = int(cw/2), int(cw/2)
+            s = X_test_raw.shape[2]
+            X_test_raw = X_test_raw[:,:,cw1:s-cw2,:]
+            
+         
+        #2, 分开两个 channel，每一个 sample 拆开，成为（x, y）的图像，再合并
+        tmp = None
+        for i in range(X_test_raw.shape[0]):
+            tt1 = X_test_raw[i, :, :, 0]
+            tt1 = cv2.resize(tt1, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            tflair = X_test_raw[i, :, :, 1]
+            tflair = cv2.resize(tflair, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            cc = np.concatenate( (np.expand_dims(tt1, axis=-1),np.expand_dims(tflair, axis=-1)), axis=-1)
+            if tmp is None:
+                tmp = np.expand_dims(cc, axis=0)
+            else:
+                tmp = np.concatenate((tmp, np.expand_dims(cc, axis=0)), axis=0)
+        
+        if X_test is None:
+            X_test= tmp
+        else:
+            X_test = np.concatenate((X_test, tmp), axis=0)
+    
+    np.save(os.path.join("data_"+str(new_size), "X_test.npy"), X_test)
+    print("X_test saved! ",X_test.shape)
+    
+    '''
+    Y_test
+    '''
+    for hos in hospitals:
+        Y_test_raw = np.load(os.path.join("data_raw", "Y_test_"+hos+".npy"))
+        
+        #1, 先看尺寸是否超出，超出的裁掉，不足的不 padding。
+        ############## height ###################
+        ch = Y_test_raw.shape[1] - new_size
+        if ch > 0: # need padded to new_size on height
+            if ch % 2 != 0:
+                ch1, ch2 = int(ch/2), int(ch/2) + 1
+            else:
+                ch1, ch2 = int(ch/2), int(ch/2)
+            
+            s = Y_test_raw.shape[1]
+            Y_test_raw = Y_test_raw[:,ch1:s-ch2,:]
+        
+        ############## weight ###################
+        cw = Y_test_raw.shape[2] - new_size
+        if cw > 0:
+            if cw % 2 != 0:
+                cw1, cw2 = int(cw/2), int(cw/2) + 1
+            else:
+                cw1, cw2 = int(cw/2), int(cw/2)
+            s = Y_test_raw.shape[2]
+            Y_test_raw = Y_test_raw[:,:,cw1:s-cw2]
+            
+         
+        #2, 
+        tmp = None
+        for i in range(Y_test_raw.shape[0]):
+            ty = Y_test_raw[i, :, :]
+            ty = ty.astype(float)
+            ty = cv2.resize(ty, (new_size, new_size), interpolation=cv2.INTER_AREA)
+            
+            if tmp is None:
+                tmp = np.expand_dims(ty, axis=0)
+            else:
+                tmp = np.concatenate((tmp, np.expand_dims(ty, axis=0)), axis=0)
+        
+        if Y_test is None:
+            Y_test= tmp
+        else:
+            Y_test = np.concatenate((Y_test, tmp), axis=0)
+    
+    np.save(os.path.join("data_"+str(new_size), "Y_test.npy"), Y_test)
+    print("Y_test saved! ",Y_test.shape)
+    
+    print("Resizing to", new_size, "finished!")
+    
+    
+    print("Starting to create nii.gz file to further converging....")
+    
+    print("X_test type is", type(X_test), X_test.dtype)
+    img = nib.Nifti1Image(X_test[:,:,:,0], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"X_test_t1_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create X_test_t1_"+str(which_part_as_test)+".nii.gz","with shape",X_test.shape)
+    
+    img = nib.Nifti1Image(X_test[:,:,:,1], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"X_test_flair_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create X_test_flair_"+str(which_part_as_test)+".nii.gz","with shape",X_test.shape)
+    
+ 
+    Y_test = Y_test.astype(float)
+    print("Y_test type is", type(Y_test), Y_test.dtype)
+    img = nib.Nifti1Image(Y_test.reshape((Y_test.shape[0],Y_test.shape[1],Y_test.shape[2],1))[:,:,:,0], np.eye(4))
+    nib.save(img, os.path.join("data_"+str(new_size),"Y_test_"+str(which_part_as_test)+".nii.gz"))
+    print("Finish create Y_test_"+str(which_part_as_test)+".nii.gz","with shape", Y_test.shape)
+    
+    for i in range(Y_test.shape[0]):
+        if np.sum(Y_test[i, :,:]) > 400:
+            plt.imshow(Y_test[i,:,:])
+            break
+    print("Finished!")
+
 
 # In[]
     
@@ -405,5 +649,6 @@ def test():
     print("Y_train: ", Y_train.shape)
 
 if __name__ == '__main__':
-    create_raw_data(test_frac=0.2, which_part_as_test=0) # for frac=0.2, which_part_as_test can take from {0,1,2,3,4}
-    resize_data(which_part_as_test=0)
+#    create_raw_data(test_frac=0.2, which_part_as_test=0) # for frac=0.2, which_part_as_test can take from {0,1,2,3,4}
+#    resize_data(which_part_as_test=0)
+    resize_data_with_stretching(which_part_as_test=0)
