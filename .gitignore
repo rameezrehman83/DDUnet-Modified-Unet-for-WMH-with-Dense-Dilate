@@ -1,0 +1,10 @@
+data/
+data_240/
+data_raw/
+__pycache__/
+nii_generated/
+result_unet/
+result_unet_dilated/
+trash/
+weights*
+create_raw_*
